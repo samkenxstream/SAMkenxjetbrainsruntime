@@ -117,9 +117,11 @@ void VM_Version::initialize() {
     if (FLAG_IS_DEFAULT(UseSIMDForMemoryOps)) {
       FLAG_SET_DEFAULT(UseSIMDForMemoryOps, true);
     }
+#ifdef COMPILER2
     if (FLAG_IS_DEFAULT(UseFPUForSpilling)) {
       FLAG_SET_DEFAULT(UseFPUForSpilling, true);
     }
+#endif
   }
 
   // Cortex A53
@@ -304,6 +306,15 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseUnalignedAccesses, true);
   }
 
+  if (FLAG_IS_DEFAULT(UseBarriersForVolatile)) {
+    UseBarriersForVolatile = (_features & CPU_DMB_ATOMICS) != 0;
+  }
+
+  if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
+    UsePopCountInstruction = true;
+  }
+
+#ifdef COMPILER2
   if (FLAG_IS_DEFAULT(UseMultiplyToLenIntrinsic)) {
     UseMultiplyToLenIntrinsic = true;
   }
@@ -316,14 +327,6 @@ void VM_Version::initialize() {
     UseMulAddIntrinsic = true;
   }
 
-  if (FLAG_IS_DEFAULT(UseBarriersForVolatile)) {
-    UseBarriersForVolatile = (_features & CPU_DMB_ATOMICS) != 0;
-  }
-
-  if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
-    UsePopCountInstruction = true;
-  }
-
   if (FLAG_IS_DEFAULT(UseMontgomeryMultiplyIntrinsic)) {
     UseMontgomeryMultiplyIntrinsic = true;
   }
@@ -331,7 +334,6 @@ void VM_Version::initialize() {
     UseMontgomerySquareIntrinsic = true;
   }
 
-#ifdef COMPILER2
   if (FLAG_IS_DEFAULT(OptoScheduling)) {
     OptoScheduling = true;
   }
