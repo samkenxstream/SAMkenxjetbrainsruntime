@@ -15,6 +15,10 @@
           <option name="issueRegexp" value="(?:JDK-)?\d{7}" />
           <option name="linkRegexp" value="https://bugs.openjdk.java.net/projects/JDK/issues/JDK-$0" />
         </IssueNavigationLink>
+        <IssueNavigationLink>
+          <option name="issueRegexp" value="(?:JDK-)?\d{7}" />
+          <option name="linkRegexp" value="https://bugs.openjdk.java.net/projects/JDK/issues/JDK-$0" />
+        </IssueNavigationLink>
       </list>
     </option>
   </component>
