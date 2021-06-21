@@ -197,7 +197,7 @@ public class LWWindowPeer
         }
 
         platformWindow.initialize(target, this, ownerDelegate);
-
+        platformWindow.setOpaque(!isTranslucent());
         // Init warning window(for applets)
         SecurityWarningWindow warn = null;
         if (target.getWarningString() != null) {
