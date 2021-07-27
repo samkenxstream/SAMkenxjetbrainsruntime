@@ -51,7 +51,7 @@ function create_image_bundle {
   tmp=.bundle.$$.tmp
   mkdir "$tmp" || do_exit $?
 
-  [ "$bundle_type" == "fd" ] && [ "$__bundle_name" == "$JBRSDK_BUNDLE" ] && fastdebug_infix="fastdebug-"
+  [ "$bundle_type" == "fd" ] && [ "$__arch_name" == "$JBRSDK_BUNDLE" ] && __bundle_name=$__arch_name && fastdebug_infix="fastdebug-"
   JBR=${__bundle_name}-${JBSDK_VERSION}-osx-${architecture}-${fastdebug_infix}b${build_number}
 
   JRE_CONTENTS=$tmp/$__arch_name/Contents
@@ -94,19 +94,19 @@ RELEASE_NAME=macosx-${CONF_ARCHITECTURE}-server-release
 
 case "$bundle_type" in
   "jcef")
-    do_reset_changes=1
+    do_reset_changes=0
     ;;
   "dcevm")
     HEAD_REVISION=$(git rev-parse HEAD)
     git am jb/project/tools/patches/dcevm/*.patch || do_exit $?
-    do_reset_dcevm=1
-    do_reset_changes=1
+    do_reset_dcevm=0
+    do_reset_changes=0
     ;;
   "nomod" | "")
     bundle_type=""
     ;;
   "fd")
-    do_reset_changes=1
+    do_reset_changes=0
     WITH_DEBUG_LEVEL="--with-debug-level=fastdebug"
     RELEASE_NAME=macosx-${CONF_ARCHITECTURE}-server-fastdebug
     JBSDK=macosx-${architecture}-server-release
@@ -154,7 +154,6 @@ if [ "$bundle_type" == "jcef" ] || [ "$bundle_type" == "dcevm" ] || [ "$bundle_t
   cp $JCEF_PATH/jmods/* $JSDK_MODS_DIR # $JSDK/jmods is not changed
 
   jbr_name_postfix="_${bundle_type}"
-  [ "$bundle_type" != "fd" ] && jbrsdk_name_postfix="_${bundle_type}"
 fi
 
 # create runtime image bundle

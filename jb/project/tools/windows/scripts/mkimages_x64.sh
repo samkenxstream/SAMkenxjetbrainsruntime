@@ -57,19 +57,19 @@ RELEASE_NAME=windows-x86_64-server-release
 
 case "$bundle_type" in
   "jcef")
-    do_reset_changes=1
+    do_reset_changes=0
     ;;
   "dcevm")
     HEAD_REVISION=$(git rev-parse HEAD)
     git am jb/project/tools/patches/dcevm/*.patch || do_exit $?
-    do_reset_dcevm=1
-    do_reset_changes=1
+    do_reset_dcevm=0
+    do_reset_changes=0
     ;;
   "nomod" | "")
     bundle_type=""
     ;;
   "fd")
-    do_reset_changes=1
+    do_reset_changes=0
     WITH_DEBUG_LEVEL="--with-debug-level=fastdebug"
     RELEASE_NAME=windows-x86_64-server-fastdebug
     ;;
