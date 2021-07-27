@@ -37,18 +37,18 @@ function create_image_bundle {
   __modules_path=$3
   __modules=$4
 
-  [ -d $__bundle_name ] && rm -rf $__bundle_name
+  [ "$bundle_type" == "fd" ] && [ "$__arch_name" == "$JBRSDK_BUNDLE" ] && __bundle_name=$__arch_name && fastdebug_infix="fastdebug-"
 
   echo Running jlink ...
   ${JSDK}/bin/jlink \
     --module-path $__modules_path --no-man-pages --compress=2 \
-    --add-modules $__modules --output $__bundle_name || do_exit $?
+    --add-modules $__modules --output $__arch_name || do_exit $?
 
-  grep -v "^JAVA_VERSION" "$JSDK"/release | grep -v "^MODULES" >> $__bundle_name/release
+  grep -v "^JAVA_VERSION" "$JSDK"/release | grep -v "^MODULES" >> $__arch_name/release
   if [ "$__arch_name" == "$JBRSDK_BUNDLE" ]; then
-    sed 's/JBR/JBRSDK/g' $__bundle_name/release > release
-    mv release $__bundle_name/release
-    copy_jmods "$__modules" "$__modules_path" "$__bundle_name"/jmods
+    sed 's/JBR/JBRSDK/g' $__arch_name/release > release
+    mv release $__arch_name/release
+    copy_jmods "$__modules" "$__modules_path" "$__arch_name"/jmods
   fi
 }
 
@@ -98,11 +98,6 @@ IMAGES_DIR=build/$RELEASE_NAME/images
 JSDK=$IMAGES_DIR/jdk
 JSDK_MODS_DIR=$IMAGES_DIR/jmods
 JBRSDK_BUNDLE=jbrsdk
-
-where cygpath
-if [ $? -eq 0 ]; then
-  JCEF_PATH="$(cygpath -w $JCEF_PATH | sed 's/\\/\//g')"
-fi
 
 if [ "$bundle_type" == "jcef" ] || [ "$bundle_type" == "dcevm" ] || [ "$bundle_type" == "fd" ]; then
   git apply -p0 < jb/project/tools/patches/add_jcef_module.patch || do_exit $?
