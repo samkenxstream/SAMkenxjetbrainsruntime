@@ -521,7 +521,10 @@ public class LWWindowPeer
     }
 
     public final void setTextured(final boolean isTextured) {
-        textured = isTextured;
+        if (textured != isTextured) {
+            textured = isTextured;
+            updateOpaque();
+        }
     }
 
     @Override
