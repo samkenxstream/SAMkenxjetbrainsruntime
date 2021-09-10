@@ -180,6 +180,9 @@ public class CPlatformEmbeddedFrame implements PlatformWindow {
     public void setOpaque(boolean isOpaque) {}
 
     @Override
+    public void setBackground(Color color) {}
+
+    @Override
     public void enterFullScreenMode() {}
 
     @Override
