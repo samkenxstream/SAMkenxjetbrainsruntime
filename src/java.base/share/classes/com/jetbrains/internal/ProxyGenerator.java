@@ -84,16 +84,23 @@ class ProxyGenerator {
         bridgeName = generateBridge ? info.apiModule.lookupClass().getPackageName().replace('.', '/') + "/" +
                 info.interFace.getSimpleName() + "$$JBRApiBridge$" + nameId : null;
 
-        proxyWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-        bridgeWriter = generateBridge ? new ClassWriter(ClassWriter.COMPUTE_FRAMES) : new ClassVisitor(ASM_VERSION) {
-            @Override
-            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-                return new MethodVisitor(api) {};
+        class ClassWriter extends jdk.internal.org.objectweb.asm.ClassWriter {
+            ClassWriter() { super(ClassWriter.COMPUTE_FRAMES); }
+            ClassVisitor createEmptyVisitor() {
+                return new ClassVisitor(api) {
+                    @Override
+                    public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+                        return new MethodVisitor(api) {};
+                    }
+                };
             }
-        };
-        proxyWriter.visit(BYTECODE_VERSION, ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC, proxyName, null,
+        }
+        ClassWriter proxyClassWriter = new ClassWriter();
+        proxyWriter = proxyClassWriter;
+        bridgeWriter = generateBridge ? new ClassWriter() : proxyClassWriter.createEmptyVisitor();
+        proxyWriter.visit(CLASSFILE_VERSION, ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC, proxyName, null,
                 "java/lang/Object", new String[] {Type.getInternalName(info.interFace)});
-        bridgeWriter.visit(BYTECODE_VERSION, ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC | ACC_PUBLIC, bridgeName, null,
+        bridgeWriter.visit(CLASSFILE_VERSION, ACC_SUPER | ACC_FINAL | ACC_SYNTHETIC | ACC_PUBLIC, bridgeName, null,
                 "java/lang/Object", null);
         generateConstructor();
         generateMethods();

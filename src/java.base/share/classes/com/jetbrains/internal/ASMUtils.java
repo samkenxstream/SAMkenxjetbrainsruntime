@@ -16,6 +16,7 @@
 
 package com.jetbrains.internal;
 
+import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.ClassVisitor;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.Type;
@@ -42,8 +43,7 @@ class ASMUtils {
         }
     }
 
-    public static final int ASM_VERSION = ASM8;
-    public static final int BYTECODE_VERSION = 61;
+    public static final int CLASSFILE_VERSION = VM.classFileVersion();
 
     public static void generateUnsupportedMethod(ClassVisitor writer, Method interfaceMethod) {
         InternalMethodInfo methodInfo = getInternalMethodInfo(interfaceMethod);
