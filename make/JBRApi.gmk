@@ -47,7 +47,6 @@ $(eval $(call SetupJavaCompilation, BUILD_JBR_API, \
     EXTRA_FILES := $(JBR_API_GENSRC_FILES), \
     BIN := $(JBR_API_BIN_DIR), \
     JAR := $(JBR_API_OUTPUT_DIR)/jbr-api.jar, \
-    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK), \
 ))
 
 $(eval $(call SetupJarArchive, BUILD_JBR_API_SOURCES_JAR, \
