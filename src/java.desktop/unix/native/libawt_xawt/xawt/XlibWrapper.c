@@ -656,21 +656,44 @@ JNIEXPORT void JNICALL Java_sun_awt_X11_XlibWrapper_XWindowEvent
     XWindowEvent( (Display *) jlong_to_ptr(display), (Window)window, event_mask, (XEvent *) jlong_to_ptr(event_return));
 }
 
-static int filteredEventsCount = 0;
-static int filteredEventsThreshold = -1;
-static const int DEFAULT_THRESHOLD = 5;
-#define KeyPressEventType   2
-#define KeyReleaseEventType 3
 
-static void checkBrokenInputMethod(XEvent * event, jboolean isEventFiltered) {
+// Fix of JBR-1573, JBR-2444, JBR-XXXX (a.k.a. IDEA-246833).
+// Input method is considered broken if and only if all the following statements are true:
+//   * XFilterEvent have filtered more than filteredEventsThreshold last events of types KeyPressed, KeyReleased;
+//   * Input method hasn't been changed (e.g. recreated);
+//   * Current input context hasn't been switched;
+//   * The input context is not in preedit state (XNPreeditStartCallback has been called but XNPreeditDoneCallback - hasn't)
+//     OR
+//     the input context is in preedit state AND no preedit events (XNPreeditDrawCallback, XNPreeditCaretCallback, CommitStringCallback)
+//     have occurred.
+
+static int detectAndRecreateBrokenInputMethod_eatenEventsThreshold = -1;
+static int detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+
+XIM detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = NULL;
+XIC detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = NULL;
+static XIM detectAndRecreateBrokenInputMethod_lastHandledXIM = NULL;
+static XIC detectAndRecreateBrokenInputMethod_lastHandledXIC = NULL;
+
+char detectAndRecreateBrokenInputMethod_duringPreediting = 0;
+char detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+
+static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const jboolean isEventFiltered) {
+    //AWT_CHECK_HAVE_LOCK();
+
+    enum { DEFAULT_THRESHOLD = 5 };
+
     // Fix for JBR-2444
-    // By default filteredEventsThreshold == 5, you can turn it off with
+    // By default filteredEventsThreshold == DEFAULT_THRESHOLD, you can turn it off with
     // recreate.x11.input.method=false
-    if (filteredEventsThreshold < 0) {
-        filteredEventsThreshold = 0;
+    if (detectAndRecreateBrokenInputMethod_eatenEventsThreshold < 0) {
+        detectAndRecreateBrokenInputMethod_eatenEventsThreshold = 0;
 
         // read from VM-property
         JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+        if ((env == NULL) || (env == (void*)JNI_ERR)) {
+            return;
+        }
         jclass systemCls = (*env)->FindClass(env, "java/lang/System");
         CHECK_NULL(systemCls);
         jmethodID mid = (*env)->GetStaticMethodID(env, systemCls, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;");
@@ -680,36 +703,53 @@ static void checkBrokenInputMethod(XEvent * event, jboolean isEventFiltered) {
         jstring jvalue = (*env)->CallStaticObjectMethod(env, systemCls, mid, name);
 
         if (jvalue == NULL) {
-            filteredEventsThreshold = DEFAULT_THRESHOLD;
+            detectAndRecreateBrokenInputMethod_eatenEventsThreshold = DEFAULT_THRESHOLD;
         } else {
             const char * utf8string = (*env)->GetStringUTFChars(env, jvalue, NULL);
             if (utf8string != NULL) {
                 const int parsedVal = atoi(utf8string);
                 if (parsedVal > 0)
-                    filteredEventsThreshold = parsedVal;
+                    detectAndRecreateBrokenInputMethod_eatenEventsThreshold = parsedVal;
                 else if (strncmp(utf8string, "true", 4) == 0)
-                    filteredEventsThreshold = DEFAULT_THRESHOLD;
+                    detectAndRecreateBrokenInputMethod_eatenEventsThreshold = DEFAULT_THRESHOLD;
             }
             (*env)->ReleaseStringUTFChars(env, jvalue, utf8string);
         }
 
         (*env)->DeleteLocalRef(env, name);
     }
-    if (filteredEventsThreshold <= 0)
+    if (detectAndRecreateBrokenInputMethod_eatenEventsThreshold <= 0)
         return;
 
-    if (event->type == KeyPressEventType || event->type == KeyReleaseEventType) {
-        if (isEventFiltered) {
-            filteredEventsCount++;
-        } else {
-            filteredEventsCount = 0;
-        }
+    // Let's work only with key events
+    if ((event->type != KeyPress) && (event->type != KeyRelease))
+        return;
 
-        if (filteredEventsCount > filteredEventsThreshold) {
-            JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
-            JNU_CallStaticMethodByName(env, NULL, "sun/awt/X11InputMethod", "recreateAllXIC", "()V");
-            filteredEventsCount = 0;
-        }
+    const int ximHasBeenChanged =
+        (detectAndRecreateBrokenInputMethod_lastHandledXIM != detectAndRecreateBrokenInputMethod_lastPreeditEventXIM);
+    const int xicHasBeenChanged =
+        (detectAndRecreateBrokenInputMethod_lastHandledXIC != detectAndRecreateBrokenInputMethod_lastPreeditEventXIC);
+
+    detectAndRecreateBrokenInputMethod_lastHandledXIM = detectAndRecreateBrokenInputMethod_lastPreeditEventXIM;
+    detectAndRecreateBrokenInputMethod_lastHandledXIC = detectAndRecreateBrokenInputMethod_lastPreeditEventXIC;
+
+    if (ximHasBeenChanged || xicHasBeenChanged) {
+        detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+    }
+    if (isEventFiltered &&
+        (!detectAndRecreateBrokenInputMethod_duringPreediting || !detectAndRecreateBrokenInputMethod_preeditEventOccurred))
+    {
+        ++detectAndRecreateBrokenInputMethod_eatenEventsCount;
+    } else {
+        detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+    }
+
+    if (detectAndRecreateBrokenInputMethod_eatenEventsCount > detectAndRecreateBrokenInputMethod_eatenEventsThreshold) {
+        detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+        detectAndRecreateBrokenInputMethod_duringPreediting = 0;
+
+        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+        JNU_CallStaticMethodByName(env, NULL, "sun/awt/X11InputMethod", "recreateAllXIC", "()V");
     }
 }
 
@@ -727,8 +767,13 @@ JNIEXPORT jboolean JNICALL Java_sun_awt_X11_XlibWrapper_XFilterEvent
         return (jboolean)True;
     }
 #endif
-    jboolean isEventFiltered = (jboolean) XFilterEvent((XEvent *) jlong_to_ptr(ptr), (Window) window);
-    checkBrokenInputMethod((XEvent *)jlong_to_ptr(ptr), isEventFiltered);
+    XEvent* const xEvent = (XEvent *)jlong_to_ptr(ptr);
+
+    const jboolean isEventFiltered = (jboolean) XFilterEvent(xEvent, (Window) window);
+
+    detectAndRecreateBrokenInputMethod(xEvent, isEventFiltered);
+    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+
     return isEventFiltered;
 }
 
