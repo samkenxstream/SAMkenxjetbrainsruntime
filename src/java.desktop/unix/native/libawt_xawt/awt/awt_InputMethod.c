@@ -1062,19 +1062,15 @@ createXIC(JNIEnv * env, X11InputMethodData *pX11IMData, Window w)
 
 
 // XlibWrapper.c
-extern XIM detectAndRecreateBrokenInputMethod_lastPreeditEventXIM;
-extern XIC detectAndRecreateBrokenInputMethod_lastPreeditEventXIC;
-extern char detectAndRecreateBrokenInputMethod_duringPreediting;
-extern char detectAndRecreateBrokenInputMethod_preeditEventOccurred;
+extern void detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(XIC ic);
+extern void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char enabled, XIC ic);
 
 static int
 PreeditStartCallback(XIC ic, XPointer client_data, XPointer call_data)
 {
     /*ARGSUSED*/
     /* printf("Native: PreeditStartCallback\n"); */
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_duringPreediting = 1;
+    detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(1, ic);
 
     return -1;
 }
@@ -1084,9 +1080,7 @@ PreeditDoneCallback(XIC ic, XPointer client_data, XPointer call_data)
 {
     /*ARGSUSED*/
     /* printf("Native: PreeditDoneCallback\n"); */
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_duringPreediting = 0;
+    detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(0, ic);
 }
 
 /*
@@ -1099,9 +1093,7 @@ static void
 PreeditDrawCallback(XIC ic, XPointer client_data,
                     XIMPreeditDrawCallbackStruct *pre_draw)
 {
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 1;
+    detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(ic);
 
     JNIEnv *env = GetJNIEnv();
     X11InputMethodData *pX11IMData = NULL;
@@ -1197,9 +1189,7 @@ PreeditCaretCallback(XIC ic, XPointer client_data,
     /*ARGSUSED*/
     /* printf("Native: PreeditCaretCallback\n"); */
 
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 1;
+    detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(ic);
 }
 
 #if defined(__linux__) || defined(MACOSX)
@@ -1298,9 +1288,7 @@ StatusDrawCallback(XIC ic, XPointer client_data,
 #endif /* __linux__ || MACOSX */
 
 static void CommitStringCallback(XIC ic, XPointer client_data, XPointer call_data) {
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 1;
+    detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(ic);
 
     JNIEnv *env = GetJNIEnv();
     XIMText * text = (XIMText *)call_data;

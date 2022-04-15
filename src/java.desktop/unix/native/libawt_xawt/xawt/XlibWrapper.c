@@ -670,13 +670,13 @@ JNIEXPORT void JNICALL Java_sun_awt_X11_XlibWrapper_XWindowEvent
 static int detectAndRecreateBrokenInputMethod_eatenEventsThreshold = -1;
 static int detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
 
-XIM detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = NULL;
-XIC detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = NULL;
+static XIM detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = NULL;
+static XIC detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = NULL;
 static XIM detectAndRecreateBrokenInputMethod_lastHandledXIM = NULL;
 static XIC detectAndRecreateBrokenInputMethod_lastHandledXIC = NULL;
 
-char detectAndRecreateBrokenInputMethod_duringPreediting = 0;
-char detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+static char detectAndRecreateBrokenInputMethod_duringPreediting = 0;
+static char detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
 
 static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const jboolean isEventFiltered) {
     //AWT_CHECK_HAVE_LOCK();
@@ -752,6 +752,19 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         JNU_CallStaticMethodByName(env, NULL, "sun/awt/X11InputMethod", "recreateAllXIC", "()V");
     }
 }
+
+void detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(XIC ic) {
+    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
+    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
+    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 1;
+}
+
+void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char enabled, XIC ic) {
+    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
+    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
+    detectAndRecreateBrokenInputMethod_duringPreediting = enabled;
+}
+
 
 /*
  * Class:     sun_awt_X11_XlibWrapper
