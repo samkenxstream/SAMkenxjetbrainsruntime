@@ -772,7 +772,9 @@ JNIEXPORT jboolean JNICALL Java_sun_awt_X11_XlibWrapper_XFilterEvent
     const jboolean isEventFiltered = (jboolean) XFilterEvent(xEvent, (Window) window);
 
     detectAndRecreateBrokenInputMethod(xEvent, isEventFiltered);
-    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+    if ((xEvent->type == KeyPress) || (xEvent->type == KeyRelease)) {
+        detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+    }
 
     return isEventFiltered;
 }
