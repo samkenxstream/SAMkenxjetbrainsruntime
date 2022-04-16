@@ -729,15 +729,17 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         (detectAndRecreateBrokenInputMethod_lastHandledXIM != detectAndRecreateBrokenInputMethod_lastPreeditEventXIM);
     const int xicHasBeenChanged =
         (detectAndRecreateBrokenInputMethod_lastHandledXIC != detectAndRecreateBrokenInputMethod_lastPreeditEventXIC);
+    const char preeditEventOccurred = detectAndRecreateBrokenInputMethod_preeditEventOccurred;
 
     detectAndRecreateBrokenInputMethod_lastHandledXIM = detectAndRecreateBrokenInputMethod_lastPreeditEventXIM;
     detectAndRecreateBrokenInputMethod_lastHandledXIC = detectAndRecreateBrokenInputMethod_lastPreeditEventXIC;
+    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
 
     if (ximHasBeenChanged || xicHasBeenChanged) {
         detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
     }
     if (isEventFiltered &&
-        (!detectAndRecreateBrokenInputMethod_duringPreediting || !detectAndRecreateBrokenInputMethod_preeditEventOccurred))
+        (!detectAndRecreateBrokenInputMethod_duringPreediting || !preeditEventOccurred))
     {
         ++detectAndRecreateBrokenInputMethod_eatenEventsCount;
     } else {
@@ -785,9 +787,6 @@ JNIEXPORT jboolean JNICALL Java_sun_awt_X11_XlibWrapper_XFilterEvent
     const jboolean isEventFiltered = (jboolean) XFilterEvent(xEvent, (Window) window);
 
     detectAndRecreateBrokenInputMethod(xEvent, isEventFiltered);
-    if ((xEvent->type == KeyPress) || (xEvent->type == KeyRelease)) {
-        detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
-    }
 
     return isEventFiltered;
 }
