@@ -1063,7 +1063,7 @@ createXIC(JNIEnv * env, X11InputMethodData *pX11IMData, Window w)
 
 // XlibWrapper.c
 extern void detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(XIC ic);
-extern void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char enabled, XIC ic);
+extern void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char isEnabled, XIC ic);
 
 static int
 PreeditStartCallback(XIC ic, XPointer client_data, XPointer call_data)

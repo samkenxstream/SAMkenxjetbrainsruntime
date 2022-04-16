@@ -761,10 +761,10 @@ void detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(XIC ic) {
     detectAndRecreateBrokenInputMethod_preeditEventOccurred = 1;
 }
 
-void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char enabled, XIC ic) {
+void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char isEnabled, XIC ic) {
     detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
     detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_duringPreediting = enabled;
+    detectAndRecreateBrokenInputMethod_duringPreediting = isEnabled;
 }
 
 
