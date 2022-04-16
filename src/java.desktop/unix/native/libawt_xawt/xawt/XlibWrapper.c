@@ -691,8 +691,14 @@ static struct {
     0
 };
 
-static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const jboolean isEventFiltered) {
-    //AWT_CHECK_HAVE_LOCK();
+static void detectAndRecreateBrokenInputMethod
+(JNIEnv *env, const XEvent * const event, const jboolean isEventFiltered) {
+    if (env == NULL)
+        env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+    if ( (env == NULL) || (env == (void*)JNI_ERR) )
+        return;
+
+    AWT_CHECK_HAVE_LOCK();
 
     enum { DEFAULT_THRESHOLD = 5 };
 
@@ -703,10 +709,6 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         brokenIMDetectionContext.eatenEventsThreshold = 0;
 
         // read from VM-property
-        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
-        if ((env == NULL) || (env == (void*)JNI_ERR)) {
-            return;
-        }
         jclass systemCls = (*env)->FindClass(env, "java/lang/System");
         CHECK_NULL(systemCls);
         jmethodID mid = (*env)->GetStaticMethodID(env, systemCls, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;");
@@ -718,7 +720,7 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         if (jvalue == NULL) {
             brokenIMDetectionContext.eatenEventsThreshold = DEFAULT_THRESHOLD;
         } else {
-            const char * utf8string = (*env)->GetStringUTFChars(env, jvalue, NULL);
+            const char *utf8string = (*env)->GetStringUTFChars(env, jvalue, NULL);
             if (utf8string != NULL) {
                 const int parsedVal = atoi(utf8string);
                 if (parsedVal > 0)
@@ -763,17 +765,18 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         brokenIMDetectionContext.eatenEventsCount = 0;
         brokenIMDetectionContext.duringPreediting = 0;
 
-        JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
         JNU_CallStaticMethodByName(env, NULL, "sun/awt/X11InputMethod", "recreateAllXIC", "()V");
     }
 }
 
+// Invoked by preedit callbacks implemented in awt_InputMethod.c
 void brokenIMDetection_onPreeditEventOccurred(XIC ic) {
     brokenIMDetectionContext.lastPreeditEventXIM = XIMOfIC(ic);
     brokenIMDetectionContext.lastPreeditEventXIC = ic;
     brokenIMDetectionContext.preeditEventOccurred = 1;
 }
 
+// Invoked by preedit callbacks implemented in awt_InputMethod.c
 void brokenIMDetection_setPreeditingStateEnabled(char isEnabled, XIC ic) {
     brokenIMDetectionContext.lastPreeditEventXIM = XIMOfIC(ic);
     brokenIMDetectionContext.lastPreeditEventXIC = ic;
@@ -799,7 +802,7 @@ JNIEXPORT jboolean JNICALL Java_sun_awt_X11_XlibWrapper_XFilterEvent
 
     const jboolean isEventFiltered = (jboolean) XFilterEvent(xEvent, (Window) window);
 
-    detectAndRecreateBrokenInputMethod(xEvent, isEventFiltered);
+    detectAndRecreateBrokenInputMethod(env, xEvent, isEventFiltered);
 
     return isEventFiltered;
 }
