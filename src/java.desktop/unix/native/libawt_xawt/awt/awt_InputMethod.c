@@ -1062,15 +1062,15 @@ createXIC(JNIEnv * env, X11InputMethodData *pX11IMData, Window w)
 
 
 // XlibWrapper.c
-extern void detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(XIC ic);
-extern void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char isEnabled, XIC ic);
+extern void brokenIMDetection_onPreeditEventOccurred(XIC ic);
+extern void brokenIMDetection_setPreeditingStateEnabled(char isEnabled, XIC ic);
 
 static int
 PreeditStartCallback(XIC ic, XPointer client_data, XPointer call_data)
 {
     /*ARGSUSED*/
     /* printf("Native: PreeditStartCallback\n"); */
-    detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(1, ic);
+    brokenIMDetection_setPreeditingStateEnabled(1, ic);
 
     return -1;
 }
@@ -1080,7 +1080,7 @@ PreeditDoneCallback(XIC ic, XPointer client_data, XPointer call_data)
 {
     /*ARGSUSED*/
     /* printf("Native: PreeditDoneCallback\n"); */
-    detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(0, ic);
+    brokenIMDetection_setPreeditingStateEnabled(0, ic);
 }
 
 /*
@@ -1093,7 +1093,7 @@ static void
 PreeditDrawCallback(XIC ic, XPointer client_data,
                     XIMPreeditDrawCallbackStruct *pre_draw)
 {
-    detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(ic);
+    brokenIMDetection_onPreeditEventOccurred(ic);
 
     JNIEnv *env = GetJNIEnv();
     X11InputMethodData *pX11IMData = NULL;
@@ -1189,7 +1189,7 @@ PreeditCaretCallback(XIC ic, XPointer client_data,
     /*ARGSUSED*/
     /* printf("Native: PreeditCaretCallback\n"); */
 
-    detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(ic);
+    brokenIMDetection_onPreeditEventOccurred(ic);
 }
 
 #if defined(__linux__) || defined(MACOSX)
@@ -1288,7 +1288,7 @@ StatusDrawCallback(XIC ic, XPointer client_data,
 #endif /* __linux__ || MACOSX */
 
 static void CommitStringCallback(XIC ic, XPointer client_data, XPointer call_data) {
-    detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(ic);
+    brokenIMDetection_onPreeditEventOccurred(ic);
 
     JNIEnv *env = GetJNIEnv();
     XIMText * text = (XIMText *)call_data;

@@ -667,16 +667,29 @@ JNIEXPORT void JNICALL Java_sun_awt_X11_XlibWrapper_XWindowEvent
 //     the input context is in preedit state AND no preedit events (XNPreeditDrawCallback, XNPreeditCaretCallback, CommitStringCallback)
 //     have occurred.
 
-static int detectAndRecreateBrokenInputMethod_eatenEventsThreshold = -1;
-static int detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+static struct {
+    int eatenEventsThreshold;
+    int eatenEventsCount;
 
-static XIM detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = NULL;
-static XIC detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = NULL;
-static XIM detectAndRecreateBrokenInputMethod_lastHandledXIM = NULL;
-static XIC detectAndRecreateBrokenInputMethod_lastHandledXIC = NULL;
+    XIM lastPreeditEventXIM;
+    XIC lastPreeditEventXIC;
+    XIM lastHandledXIM;
+    XIC lastHandledXIC;
 
-static char detectAndRecreateBrokenInputMethod_duringPreediting = 0;
-static char detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+    char duringPreediting;
+    char preeditEventOccurred;
+} brokenIMDetectionContext = {
+    -1,
+    0,
+
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+
+    0,
+    0
+};
 
 static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const jboolean isEventFiltered) {
     //AWT_CHECK_HAVE_LOCK();
@@ -686,8 +699,8 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
     // Fix for JBR-2444
     // By default filteredEventsThreshold == DEFAULT_THRESHOLD, you can turn it off with
     // recreate.x11.input.method=false
-    if (detectAndRecreateBrokenInputMethod_eatenEventsThreshold < 0) {
-        detectAndRecreateBrokenInputMethod_eatenEventsThreshold = 0;
+    if (brokenIMDetectionContext.eatenEventsThreshold < 0) {
+        brokenIMDetectionContext.eatenEventsThreshold = 0;
 
         // read from VM-property
         JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
@@ -703,22 +716,22 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         jstring jvalue = (*env)->CallStaticObjectMethod(env, systemCls, mid, name);
 
         if (jvalue == NULL) {
-            detectAndRecreateBrokenInputMethod_eatenEventsThreshold = DEFAULT_THRESHOLD;
+            brokenIMDetectionContext.eatenEventsThreshold = DEFAULT_THRESHOLD;
         } else {
             const char * utf8string = (*env)->GetStringUTFChars(env, jvalue, NULL);
             if (utf8string != NULL) {
                 const int parsedVal = atoi(utf8string);
                 if (parsedVal > 0)
-                    detectAndRecreateBrokenInputMethod_eatenEventsThreshold = parsedVal;
+                    brokenIMDetectionContext.eatenEventsThreshold = parsedVal;
                 else if (strncmp(utf8string, "true", 4) == 0)
-                    detectAndRecreateBrokenInputMethod_eatenEventsThreshold = DEFAULT_THRESHOLD;
+                    brokenIMDetectionContext.eatenEventsThreshold = DEFAULT_THRESHOLD;
             }
             (*env)->ReleaseStringUTFChars(env, jvalue, utf8string);
         }
 
         (*env)->DeleteLocalRef(env, name);
     }
-    if (detectAndRecreateBrokenInputMethod_eatenEventsThreshold <= 0)
+    if (brokenIMDetectionContext.eatenEventsThreshold <= 0)
         return;
 
     // Let's work only with key events
@@ -726,45 +739,45 @@ static void detectAndRecreateBrokenInputMethod(const XEvent* const event, const 
         return;
 
     const int ximHasBeenChanged =
-        (detectAndRecreateBrokenInputMethod_lastHandledXIM != detectAndRecreateBrokenInputMethod_lastPreeditEventXIM);
+        (brokenIMDetectionContext.lastHandledXIM != brokenIMDetectionContext.lastPreeditEventXIM);
     const int xicHasBeenChanged =
-        (detectAndRecreateBrokenInputMethod_lastHandledXIC != detectAndRecreateBrokenInputMethod_lastPreeditEventXIC);
-    const char preeditEventOccurred = detectAndRecreateBrokenInputMethod_preeditEventOccurred;
+        (brokenIMDetectionContext.lastHandledXIC != brokenIMDetectionContext.lastPreeditEventXIC);
+    const char preeditEventOccurred = brokenIMDetectionContext.preeditEventOccurred;
 
-    detectAndRecreateBrokenInputMethod_lastHandledXIM = detectAndRecreateBrokenInputMethod_lastPreeditEventXIM;
-    detectAndRecreateBrokenInputMethod_lastHandledXIC = detectAndRecreateBrokenInputMethod_lastPreeditEventXIC;
-    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 0;
+    brokenIMDetectionContext.lastHandledXIM = brokenIMDetectionContext.lastPreeditEventXIM;
+    brokenIMDetectionContext.lastHandledXIC = brokenIMDetectionContext.lastPreeditEventXIC;
+    brokenIMDetectionContext.preeditEventOccurred = 0;
 
     if (ximHasBeenChanged || xicHasBeenChanged) {
-        detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+        brokenIMDetectionContext.eatenEventsCount = 0;
     }
     if (isEventFiltered &&
-        (!detectAndRecreateBrokenInputMethod_duringPreediting || !preeditEventOccurred))
+        (!brokenIMDetectionContext.duringPreediting || !preeditEventOccurred))
     {
-        ++detectAndRecreateBrokenInputMethod_eatenEventsCount;
+        ++brokenIMDetectionContext.eatenEventsCount;
     } else {
-        detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
+        brokenIMDetectionContext.eatenEventsCount = 0;
     }
 
-    if (detectAndRecreateBrokenInputMethod_eatenEventsCount > detectAndRecreateBrokenInputMethod_eatenEventsThreshold) {
-        detectAndRecreateBrokenInputMethod_eatenEventsCount = 0;
-        detectAndRecreateBrokenInputMethod_duringPreediting = 0;
+    if (brokenIMDetectionContext.eatenEventsCount > brokenIMDetectionContext.eatenEventsThreshold) {
+        brokenIMDetectionContext.eatenEventsCount = 0;
+        brokenIMDetectionContext.duringPreediting = 0;
 
         JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
         JNU_CallStaticMethodByName(env, NULL, "sun/awt/X11InputMethod", "recreateAllXIC", "()V");
     }
 }
 
-void detectAndRecreateBrokenInputMethod_onPreeditEventOccurred(XIC ic) {
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_preeditEventOccurred = 1;
+void brokenIMDetection_onPreeditEventOccurred(XIC ic) {
+    brokenIMDetectionContext.lastPreeditEventXIM = XIMOfIC(ic);
+    brokenIMDetectionContext.lastPreeditEventXIC = ic;
+    brokenIMDetectionContext.preeditEventOccurred = 1;
 }
 
-void detectAndRecreateBrokenInputMethod_setPreeditingStateEnabled(char isEnabled, XIC ic) {
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIM = XIMOfIC(ic);
-    detectAndRecreateBrokenInputMethod_lastPreeditEventXIC = ic;
-    detectAndRecreateBrokenInputMethod_duringPreediting = isEnabled;
+void brokenIMDetection_setPreeditingStateEnabled(char isEnabled, XIC ic) {
+    brokenIMDetectionContext.lastPreeditEventXIM = XIMOfIC(ic);
+    brokenIMDetectionContext.lastPreeditEventXIC = ic;
+    brokenIMDetectionContext.duringPreediting = isEnabled;
 }
 
 
